@@ -274,3 +274,75 @@ dialog[open]::backdrop { animation: fade .3s ease; backdrop-filter: blur(3px); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- theme override (toggle) ---------- */
+:root[data-theme="light"] {
+  --bg: #f7f6f3; --card: #ffffff; --text: #37352f; --muted: #787774; --line: #e9e9e7;
+  --shadow-sm: 0 1px 2px rgba(15,15,15,.06), 0 1px 1px rgba(15,15,15,.04);
+  --shadow-md: 0 8px 24px rgba(15,15,15,.10), 0 2px 6px rgba(15,15,15,.06);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #191919; --card: #252525; --text: #e6e6e4; --muted: #9b9a97; --line: #373737;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4); --shadow-md: 0 10px 30px rgba(0,0,0,.45);
+  color-scheme: dark;
+}
+body, .card, header { transition: background-color .4s var(--ease-out), color .4s, border-color .4s; }
+
+/* insights */
+.insights { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.insights li {
+  display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 8px;
+  background: var(--bg); border-left: 3px solid var(--green); font-size: 14px;
+  animation: slideIn .45s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 70ms);
+}
+.insights li.warn { border-left-color: var(--orange); }
+.insights li.danger { border-left-color: var(--red); }
+
+/* study stats */
+.study-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.kpi { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#kStreak::after { content: ' 🔥'; font-size: 20px; }
+.study-chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 120px; }
+.study-col { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; font-size: 11px; color: var(--muted); }
+.study-col .col {
+  width: 100%; max-width: 34px; border-radius: 6px 6px 3px 3px; background: var(--accent); opacity: .85;
+  height: 0; transition: height .9s var(--ease-out); min-height: 3px;
+}
+.study-col.today .col { background: var(--green); opacity: 1; }
+.study-col.today { color: var(--text); font-weight: 600; }
+.study-col:hover .col { opacity: 1; }
+#topCourse { margin: 10px 0 0; }
+
+/* week plan */
+a.btn {
+  background: var(--accent); color: #fff; border-radius: 6px; padding: 7px 12px; text-decoration: none; font-size: 14px;
+  transition: transform .15s var(--ease-out), box-shadow .2s;
+}
+a.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.filters select#startHour { padding: 5px 8px; }
+.late { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--text); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 14px; }
+.week { display: grid; grid-template-columns: repeat(7, minmax(130px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.day {
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--bg); min-height: 160px;
+  display: flex; flex-direction: column; gap: 6px;
+  animation: fadeUp .5s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 60ms);
+}
+.day.today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.day-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; }
+.day-head strong { font-size: 14px; }
+.day-load { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.day-load span { display: block; height: 100%; background: var(--accent); transition: width .9s var(--ease-out); }
+.wblock {
+  font-size: 12px; padding: 6px 8px; border-radius: 6px; background: var(--card); border-left: 3px solid var(--green);
+  cursor: pointer; transition: transform .2s var(--ease-out), box-shadow .2s;
+  display: flex; justify-content: space-between; gap: 6px;
+}
+.wblock:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.wblock b { font-weight: 600; white-space: nowrap; }
+.wblock span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wblock.overdue { border-left-color: var(--red); }
+.wblock.at-risk { border-left-color: var(--orange); }
+.wblock.tight { border-left-color: var(--yellow); }
+.wdue { font-size: 12px; color: var(--red); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day .free { font-size: 12px; color: var(--muted); }

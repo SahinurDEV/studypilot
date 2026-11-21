@@ -11,6 +11,7 @@
     <div class="brand"><span class="logo">🧭</span> <strong>StudyPilot</strong> <span class="muted hide-sm">Smart planner for Notion Student OS</span></div>
     <div class="header-actions">
       <span id="mode" class="pill"></span>
+      <button id="themeBtn" class="ghost icon-btn" title="Toggle light / dark theme" aria-label="Toggle theme">🌙</button>
       <button id="resetBtn" class="ghost" hidden title="Restore the sample tasks">Reset demo</button>
       <button id="newBtn" title="Add a task (N)">＋ New task</button>
     </div>
@@ -29,6 +30,26 @@
 
     <div class="grid">
       <section class="card">
+        <h2>💡 Smart insights</h2>
+        <ul id="insights" class="insights"></ul>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <h2>🔥 Study stats</h2>
+          <span class="muted small">last 7 days</span>
+        </div>
+        <div class="study-kpis">
+          <div><div class="kpi" id="kStreak">0</div><div class="muted small">day streak</div></div>
+          <div><div class="kpi" id="kToday">0</div><div class="muted small">min today</div></div>
+          <div><div class="kpi" id="kWeek">0</div><div class="muted small">hours this week</div></div>
+        </div>
+        <div id="studyChart" class="study-chart" role="img" aria-label="Minutes studied per day"></div>
+        <p id="topCourse" class="muted small"></p>
+      </section>
+    </div>
+
+    <div class="grid">
+      <section class="card">
         <div class="card-head">
           <h2>Today's focus plan</h2>
           <span id="planMeter" class="muted"></span>
@@ -44,6 +65,22 @@
         <div id="courses"></div>
       </section>
     </div>
+
+    <section class="card">
+      <div class="card-head wrap">
+        <h2>📅 Week plan</h2>
+        <div class="filters">
+          <label class="muted small" for="startHour">Study blocks start at</label>
+          <select id="startHour">
+            <option value="8">8:00</option><option value="10">10:00</option><option value="14">14:00</option>
+            <option value="16">16:00</option><option value="18" selected>18:00</option><option value="20">20:00</option>
+          </select>
+          <a id="icsLink" class="btn" href="/api/calendar.ics" download>🗓️ Export to calendar</a>
+        </div>
+      </div>
+      <div id="lateWarn" class="late" hidden></div>
+      <div id="weekPlan" class="week"></div>
+    </section>
 
     <section class="card">
       <div class="card-head wrap">

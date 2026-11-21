@@ -278,6 +278,9 @@ function render() {
   $('courseList').innerHTML = courses.map((c) => `<option value="${esc(c.course)}">`).join('');
 
   renderTable();
+  renderInsights();
+  renderStudy();
+  renderWeek();
 
   if (firstRender) {
     document.querySelectorAll('main > *').forEach((el, i) => {
@@ -337,6 +340,62 @@ function renderTable() {
     </tr>`)
     .join('');
   flip($('ranked'), 'tr[data-id]', rowRects);
+}
+
+function renderInsights() {
+  $('insights').innerHTML = state.data.insights
+    .map((t, i) => `<li class="${t.level}" style="--i:${i}"><span>${t.icon}</span><span>${esc(t.text)}</span></li>`)
+    .join('');
+}
+
+function renderStudy() {
+  const st = state.data.stats;
+  countUp($('kStreak'), 'streak', st.streak);
+  countUp($('kToday'), 'today', st.todayMinutes);
+  countUp($('kWeek'), 'weekH', Number((st.weekMinutes / 60).toFixed(1)));
+  const max = Math.max(...st.last7.map((d) => d.minutes), 30);
+  $('studyChart').innerHTML = st.last7
+    .map((d, i) => `
+      <div class="study-col ${i === 6 ? 'today' : ''}" title="${d.weekday} ${d.date}: ${d.minutes} min">
+        <span>${d.minutes ? d.minutes : ''}</span>
+        <div class="col" data-h="${(d.minutes / max) * 100}" style="height:${prevBars[`s-${d.date}`] ?? 0}%"></div>
+        <span>${i === 6 ? 'Today' : d.weekday}</span>
+      </div>`)
+    .join('');
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() =>
+      $('studyChart').querySelectorAll('.col').forEach((c, i) => {
+        c.style.height = `${c.dataset.h}%`;
+        prevBars[`s-${st.last7[i].date}`] = Number(c.dataset.h);
+      })
+    )
+  );
+  $('topCourse').textContent = st.topCourse
+    ? `Most studied: ${st.topCourse.course} (${(st.topCourse.minutes / 60).toFixed(1)}h). Use ▶ focus or ✔ to log more.`
+    : 'No sessions yet. Start a ▶ focus timer to begin your streak!';
+}
+
+function renderWeek() {
+  const { week } = state.data;
+  const risk = Object.fromEntries(state.data.plan.ranked.map((t) => [t.id, t.risk]));
+  $('lateWarn').hidden = !week.late.length;
+  $('lateWarn').innerHTML = week.late.length
+    ? `⏰ Won't finish in time at your current pace: ${week.late.map((t) => `<b>${esc(t.title)}</b> (due ${t.due.slice(5)})`).join(', ')}. Raise your daily hours or start earlier.`
+    : '';
+  const animate = firstRender || state.weekAnimated !== true;
+  $('weekPlan').innerHTML = week.days
+    .map((d, i) => `
+      <div class="day ${i === 0 ? 'today' : ''}" style="--i:${i};${animate ? '' : 'animation:none'}">
+        <div class="day-head"><strong>${i === 0 ? 'Today' : d.weekday}</strong><span class="muted">${d.date.slice(5).replace('-', '/')}</span></div>
+        <div class="day-load" title="${d.hours}h of ${d.capacity}h"><span style="width:${d.capacity ? (d.hours / d.capacity) * 100 : 0}%"></span></div>
+        ${d.deadlines.map((t) => `<div class="wdue" title="Deadline">⏰ ${esc(t.title)}</div>`).join('')}
+        ${d.blocks.map((b) => `<div class="wblock ${risk[b.taskId] || ''}" data-id="${esc(b.taskId)}" title="${esc(b.title)} · ${esc(b.course)}"><span>${esc(b.title)}</span><b>${b.hours}h</b></div>`).join('')}
+        ${d.blocks.length ? '' : '<div class="free">Free day 🌿</div>'}
+        <div class="muted small" style="margin-top:auto">${d.hours}h planned</div>
+      </div>`)
+    .join('');
+  state.weekAnimated = true;
+  $('icsLink').href = `/api/calendar.ics?hours=${$('hours').value}&start=${$('startHour').value}`;
 }
 
 // ---------- focus timer ----------
@@ -575,6 +634,43 @@ document.addEventListener('keydown', (e) => {
     $('clearFilters').click();
   }
 });
+
+// week plan: click a block to jump to that task in the table
+$('weekPlan').addEventListener('click', (e) => {
+  const b = e.target.closest('.wblock');
+  if (!b) return;
+  state.filters = { search: '', course: '', risk: '' };
+  $('search').value = '';
+  renderTable();
+  const row = document.querySelector(`tr[data-id="${CSS.escape(b.dataset.id)}"]`);
+  if (!row) return;
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.classList.remove('flash');
+  void row.offsetWidth;
+  row.classList.add('flash');
+});
+$('startHour').addEventListener('change', () => {
+  store('sp-start', $('startHour').value);
+  renderWeek();
+});
+$('icsLink').addEventListener('click', () => toast('🗓️ Calendar file downloaded. Open it to add your study blocks.'));
+
+// theme toggle (remembers your choice)
+function applyTheme(theme) {
+  if (theme) document.documentElement.dataset.theme = theme;
+  const dark = theme ? theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  $('themeBtn').textContent = dark ? '☀️' : '🌙';
+}
+$('themeBtn').addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme
+    ? document.documentElement.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  const next = dark ? 'light' : 'dark';
+  store('sp-theme', next);
+  applyTheme(next);
+});
+applyTheme(store('sp-theme'));
+if (store('sp-start')) $('startHour').value = store('sp-start');
 
 // ripple on every button
 document.addEventListener('pointerdown', (e) => {

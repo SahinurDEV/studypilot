@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { buildDailyPlan, weeklyLoad, remainingHours, riskLevel, scoreTask, ymd } = require('../src/planner');
+const { buildDailyPlan, weeklyLoad, remainingHours, riskLevel, scoreTask, ymd, buildWeekSchedule, sessionStats, toICS } = require('../src/planner');
 const { pageToTask } = require('../src/notion');
 
 const today = new Date('2026-11-21T09:00:00');
@@ -74,4 +74,38 @@ test('pageToTask maps Notion properties', () => {
     { title: t.title, course: t.course, due: t.due, status: t.status, priority: t.priority, effortHours: t.effortHours, progress: t.progress },
     { title: 'Essay', course: 'ENG 105', due: '2026-11-25', status: 'In progress', priority: 'High', effortHours: 5, progress: 40 }
   );
+});
+
+test('week schedule spreads work and flags tasks that cannot finish', () => {
+  const tasks = [
+    { id: 'a', title: 'Huge', due: day(1), effortHours: 20, priority: 'High', status: 'Not started' },
+    { id: 'b', title: 'Small', due: day(5), effortHours: 2, priority: 'Low', status: 'Not started' },
+  ];
+  const week = buildWeekSchedule(tasks, { today, days: 7, hoursPerDay: 4 });
+  assert.strictEqual(week.days.length, 7);
+  week.days.forEach((d) => assert.ok(d.hours <= d.capacity));
+  assert.ok(week.late.some((t) => t.id === 'a'), 'huge task should be late');
+  assert.ok(!week.late.some((t) => t.id === 'b'), 'small task should fit');
+  assert.strictEqual(week.days[1].deadlines[0].id, 'a');
+});
+
+test('session stats compute streak and weekly minutes', () => {
+  const sessions = [
+    { date: day(0), minutes: 30, course: 'A' },
+    { date: day(-1), minutes: 60, course: 'B' },
+    { date: day(-2), minutes: 30, course: 'B' },
+    { date: day(-4), minutes: 50, course: 'A' },
+  ];
+  const s = sessionStats(sessions, { today });
+  assert.strictEqual(s.streak, 3);
+  assert.strictEqual(s.weekMinutes, 170);
+  assert.strictEqual(s.topCourse.course, 'B');
+});
+
+test('ics export contains study blocks and deadlines', () => {
+  const week = buildWeekSchedule([{ id: 'x', title: 'Essay', course: 'ENG', due: day(2), effortHours: 3, status: 'Not started' }], { today, days: 3 });
+  const ics = toICS(week);
+  assert.match(ics, /BEGIN:VCALENDAR/);
+  assert.match(ics, /SUMMARY:📚 Essay/);
+  assert.match(ics, /SUMMARY:⏰ Due: Essay/);
 });

@@ -131,7 +131,138 @@ function courseBreakdown(tasks) {
     .sort((a, b) => b.hours - a.hours);
 }
 
+// Simulate the next N days: each day takes the top work that fits, then that work
+// counts as done for later days. Shows where every hour goes and what won't make it.
+function buildWeekSchedule(tasks, { today = new Date(), days = 7, hoursPerDay = 4, hoursToday = hoursPerDay } = {}) {
+  let sim = tasks.filter(isOpen).map((t) => ({ ...t }));
+  const schedule = [];
+  const finishedOn = {};
+  for (let i = 0; i < days; i++) {
+    const day = new Date(startOfDay(today).getTime() + i * DAY_MS);
+    const plan = buildDailyPlan(sim, { today: day, hoursAvailable: i === 0 ? hoursToday : hoursPerDay, hoursPerDay });
+    const dateStr = ymd(day);
+    for (const b of plan.blocks) {
+      const t = sim.find((x) => x.id === b.taskId);
+      const effort = Number(t.effortHours) || 1;
+      t.progress = Math.min(100, (Number(t.progress) || 0) + (b.hours / effort) * 100);
+      if (remainingHours(t) <= 0.01) finishedOn[t.id] = dateStr;
+    }
+    sim = sim.filter((t) => remainingHours(t) > 0.01);
+    schedule.push({
+      date: dateStr,
+      weekday: day.toLocaleDateString('en-US', { weekday: 'short' }),
+      hours: plan.hoursPlanned,
+      capacity: plan.hoursAvailable,
+      blocks: plan.blocks,
+      deadlines: tasks.filter((t) => isOpen(t) && ymd(parseDate(t.due)) === dateStr).map((t) => ({ id: t.id, title: t.title, course: t.course })),
+    });
+  }
+  // Tasks due inside the window that the schedule could not finish before their deadline.
+  const lastDay = schedule[schedule.length - 1].date;
+  const late = tasks
+    .filter(isOpen)
+    .filter((t) => ymd(parseDate(t.due)) <= lastDay && daysUntil(t.due, today) >= 0) // overdue is reported separately
+    .filter((t) => !finishedOn[t.id] || finishedOn[t.id] > ymd(parseDate(t.due)))
+    .map((t) => ({ id: t.id, title: t.title, due: ymd(parseDate(t.due)) }));
+  return { days: schedule, late };
+}
+
+// Plain-language coaching tips built from the plan, schedule and workload.
+function buildInsights({ plan, weeks, week, hoursPerDay }) {
+  const tips = [];
+  const overdue = plan.ranked.filter((t) => t.risk === 'overdue');
+  if (overdue.length) {
+    const hours = overdue.reduce((s, t) => s + t.remaining, 0);
+    tips.push({ level: 'danger', icon: '🔴', text: `${overdue.length} task${overdue.length > 1 ? 's are' : ' is'} overdue (${hours.toFixed(1)}h). Clear ${overdue.length > 1 ? 'them' : `“${overdue[0].title}”`} first.` });
+  }
+  for (const t of week.late.slice(0, 2)) {
+    tips.push({ level: 'danger', icon: '⏰', text: `At ${hoursPerDay}h/day you won't finish “${t.title}” before ${t.due}. Add study hours or lower its scope.` });
+  }
+  const heavy = plan.ranked
+    .filter((t) => t.daysLeft > 0 && t.risk !== 'overdue')
+    .map((t) => ({ ...t, perDay: t.remaining / t.daysLeft }))
+    .sort((a, b) => b.perDay - a.perDay)[0];
+  if (heavy && heavy.perDay >= 1) {
+    tips.push({ level: 'warn', icon: '🎯', text: `Start “${heavy.title}” today: it needs ~${heavy.perDay.toFixed(1)}h/day until it's due ${heavy.daysLeft === 1 ? 'tomorrow' : `in ${heavy.daysLeft} days`}.` });
+  }
+  const over = weeks.find((w) => w.overloaded);
+  if (over) {
+    tips.push({ level: 'warn', icon: '📈', text: `${over.label} is overloaded: ${over.hours}h of work vs ${over.capacity}h capacity. Pull ${(over.hours - over.capacity).toFixed(1)}h earlier.` });
+  }
+  const light = week.days.slice(1).find((d) => d.hours < d.capacity * 0.5);
+  if (light) {
+    tips.push({ level: 'good', icon: '🌿', text: `${light.weekday} ${light.date.slice(5)} is light (${light.hours}h planned). A good day to get ahead or rest.` });
+  }
+  if (!tips.length) tips.push({ level: 'good', icon: '✅', text: 'Everything is on track. Keep your daily rhythm!' });
+  return tips.slice(0, 5);
+}
+
+// Study session stats: minutes per day for the last 7 days, streak, top course.
+function sessionStats(sessions, { today = new Date() } = {}) {
+  const byDay = {};
+  const byCourse = {};
+  for (const s of sessions) {
+    byDay[s.date] = (byDay[s.date] || 0) + s.minutes;
+    byCourse[s.course || 'Other'] = (byCourse[s.course || 'Other'] || 0) + s.minutes;
+  }
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(startOfDay(today).getTime() - i * DAY_MS);
+    const key = ymd(d);
+    last7.push({ date: key, weekday: d.toLocaleDateString('en-US', { weekday: 'short' }), minutes: Math.round(byDay[key] || 0) });
+  }
+  // Streak counts back from today (or yesterday if nothing logged yet today).
+  let streak = 0;
+  let cursor = startOfDay(today);
+  if (!byDay[ymd(cursor)]) cursor = new Date(cursor.getTime() - DAY_MS);
+  while (byDay[ymd(cursor)]) {
+    streak++;
+    cursor = new Date(cursor.getTime() - DAY_MS);
+  }
+  const top = Object.entries(byCourse).sort((a, b) => b[1] - a[1])[0];
+  return {
+    last7,
+    streak,
+    weekMinutes: last7.reduce((s, d) => s + d.minutes, 0),
+    todayMinutes: last7[6].minutes,
+    topCourse: top ? { course: top[0], minutes: Math.round(top[1]) } : null,
+  };
+}
+
+// iCalendar export: study blocks as timed events from startHour, deadlines as all-day events.
+function toICS(week, { startHour = 18 } = {}) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const escText = (s) => String(s).replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//StudyPilot//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:StudyPilot'];
+  week.days.forEach((day) => {
+    const d = day.date.replace(/-/g, '');
+    let minute = startHour * 60;
+    day.blocks.forEach((b, i) => {
+      const end = minute + Math.round(b.hours * 60);
+      const fmt = (m) => `${d}T${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`;
+      lines.push('BEGIN:VEVENT', `UID:sp-${d}-${i}-${b.taskId}@studypilot`, `DTSTAMP:${stamp}`,
+        `DTSTART:${fmt(minute)}`, `DTEND:${fmt(Math.min(end, 24 * 60 - 1))}`,
+        `SUMMARY:${escText(`📚 ${b.title}`)}`, `DESCRIPTION:${escText(`${b.course || ''} · ${b.hours}h study block (StudyPilot)`)}`, 'END:VEVENT');
+      minute = end + 10; // 10 min break between blocks
+    });
+    day.deadlines.forEach((t) => {
+      const next = new Date(`${day.date}T00:00:00`);
+      next.setDate(next.getDate() + 1);
+      lines.push('BEGIN:VEVENT', `UID:sp-due-${t.id}@studypilot`, `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${ymd(next).replace(/-/g, '')}`,
+        `SUMMARY:${escText(`⏰ Due: ${t.title}`)}`, 'END:VEVENT');
+    });
+  });
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
 module.exports = {
+  buildWeekSchedule,
+  buildInsights,
+  sessionStats,
+  toICS,
   buildDailyPlan,
   weeklyLoad,
   courseBreakdown,

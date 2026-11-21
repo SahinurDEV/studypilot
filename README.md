@@ -24,6 +24,11 @@ It runs as an **interactive web dashboard** and as a **CLI**:
 - ✔ **Tick off plan blocks** to log the hours, ▶ **focus timer** (15/25/50 min) that logs time to the task when you finish
 - ➕ **Add tasks** (press `N`), drag **progress sliders**, mark tasks **done**, all with **Undo**
 - 🔎 **Search** (`/`), filter by **course** or **risk** (click a stat card or course bar), **sort** any column
+- 📅 **Week plan**: simulates the next 7 days, places every study hour, shows each deadline and warns about work that **won't finish in time**
+- 🗓️ **Export to calendar (.ics)**: study blocks (choose your start time) + deadlines into Google / Apple / Outlook Calendar
+- 💡 **Smart insights**: coaching tips like *"Start X today: it needs ~3h/day"* or *"Next week is overloaded by 5h"*
+- 🔥 **Study stats**: minutes per day for the last 7 days, day streak, most-studied course (fed by the focus timer and ✔ logging)
+- 🌙 **Light / dark theme** toggle
 - Every change **re-plans your day instantly**, and with Notion connected it's written back to your database
 - Polished motion: staggered entrances, loading skeletons, count-up numbers, animated rankings (FLIP), growing bars, ripples. Respects *reduce motion* With no Notion keys it runs in **demo mode** on sample data, so judges can try it in seconds.
 
@@ -68,7 +73,7 @@ npm test           # run the unit tests
 ```
 src/planner.js   ranking, risk levels, daily plan, weekly load (pure functions)
 src/notion.js    Notion API client + page → task mapping
-src/server.js    dashboard server + JSON API (/api/plan, /api/sync)
+src/server.js    dashboard server + JSON API (/api/plan, /api/tasks, /api/sync, /api/calendar.ics)
 src/cli.js       setup / plan / sync commands
 src/sample.js    demo data
 public/          dashboard UI (HTML/CSS/JS)

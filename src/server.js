@@ -3,13 +3,14 @@
 //   POST  /api/tasks           add a task            { title, course, due, effortHours, priority, type }
 //   PATCH /api/tasks/:id       log work / set state  { addHours } | { progress } | { status }
 //   POST  /api/sync?hours=4    write today's plan into Notion
+//   GET   /api/calendar.ics    7-day study schedule + deadlines for any calendar app
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
 const { NotionClient, pageToTask } = require('./notion');
-const { buildDailyPlan, weeklyLoad, courseBreakdown } = require('./planner');
-const { sampleTasks } = require('./sample');
+const { buildDailyPlan, weeklyLoad, courseBreakdown, buildWeekSchedule, buildInsights, sessionStats, toICS, ymd } = require('./planner');
+const { sampleTasks, sampleSessions } = require('./sample');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml' };
@@ -17,6 +18,26 @@ const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascrip
 // In demo mode tasks live in memory so every interaction works without Notion.
 let demoTasks = sampleTasks();
 let nextId = 100;
+
+// Study sessions (focus timer + logged hours). Demo starts with a few past sessions;
+// with Notion connected they are kept in data/sessions.json.
+const SESSIONS_FILE = path.join(__dirname, '..', 'data', 'sessions.json');
+let sessions = loadSessions();
+function loadSessions() {
+  if (config.demo) return sampleSessions();
+  try {
+    return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+  } catch {
+    return [];
+  }
+}
+function logSession(task, hours) {
+  if (!(hours > 0)) return;
+  sessions.push({ date: ymd(new Date()), taskId: task.id, title: task.title, course: task.course, minutes: Math.round(hours * 60) });
+  if (config.demo) return;
+  fs.mkdirSync(path.dirname(SESSIONS_FILE), { recursive: true });
+  fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2));
+}
 const notion = () => new NotionClient(config.token);
 
 async function getTasks() {
@@ -79,7 +100,10 @@ async function updateTask(id, body) {
 
   let progress = task.progress || 0;
   let status = task.status;
-  if (body.addHours != null) progress += (Number(body.addHours) / (Number(task.effortHours) || 1)) * 100;
+  if (body.addHours != null) {
+    progress += (Number(body.addHours) / (Number(task.effortHours) || 1)) * 100;
+    logSession(task, Number(body.addHours));
+  }
   if (body.progress != null) progress = Number(body.progress);
   progress = clamp(Math.round(progress), 0, 100);
   if (body.status) status = body.status;
@@ -105,12 +129,23 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === '/api/reset' && req.method === 'POST' && config.demo) {
     demoTasks = sampleTasks();
+    sessions = sampleSessions();
     return sendJson(res, 200, { ok: true });
   }
 
   const tasks = await getTasks();
   const plan = buildDailyPlan(tasks, { hoursAvailable, hoursPerDay: config.hoursPerDay });
   const weeks = weeklyLoad(tasks, { hoursPerDay: config.hoursPerDay });
+  const week = buildWeekSchedule(tasks, { hoursPerDay: config.hoursPerDay, hoursToday: hoursAvailable });
+
+  if (url.pathname === '/api/calendar.ics' && req.method === 'GET') {
+    const startHour = Math.min(Math.max(Number(url.searchParams.get('start')) || 18, 0), 22);
+    res.writeHead(200, {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': `attachment; filename="studypilot-${ymd(new Date())}.ics"`,
+    });
+    return res.end(toICS(week, { startHour }));
+  }
 
   if (url.pathname === '/api/plan' && req.method === 'GET') {
     return sendJson(res, 200, {
@@ -121,6 +156,9 @@ async function handleApi(req, res, url) {
       weeks,
       courses: courseBreakdown(tasks),
       doneCount: tasks.filter((t) => t.status === 'Done').length,
+      week,
+      insights: buildInsights({ plan, weeks, week, hoursPerDay: config.hoursPerDay }),
+      stats: sessionStats(sessions),
     });
   }
 

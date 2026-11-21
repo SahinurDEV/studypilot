@@ -22,4 +22,18 @@ function sampleTasks() {
   ];
 }
 
-module.exports = { sampleTasks, inDays };
+// A few past study sessions so the streak and stats have something to show.
+function sampleSessions() {
+  const rows = [
+    [-6, 's2', 'Data Structures midterm', 'CSE 220', 50],
+    [-5, 's5', 'Group project prototype', 'CSE 220', 90],
+    [-4, 's1', 'Calculus problem set 6', 'MATH 201', 45],
+    [-3, 's5', 'Group project prototype', 'CSE 220', 75],
+    [-2, 's1', 'Calculus problem set 6', 'MATH 201', 30],
+    [-2, 's8', 'Club event budget sheet', 'Robotics Club', 25],
+    [-1, 's2', 'Data Structures midterm', 'CSE 220', 60],
+  ];
+  return rows.map(([d, taskId, title, course, minutes]) => ({ date: inDays(d), taskId, title, course, minutes }));
+}
+
+module.exports = { sampleTasks, sampleSessions, inDays };
