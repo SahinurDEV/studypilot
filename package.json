@@ -8,8 +8,11 @@
     "plan": "node src/cli.js plan",
     "sync": "node src/cli.js sync",
     "setup": "node src/cli.js setup",
-    "test": "node --test test/"
+    "test": "node --test test/",
+    "token": "node src/save-token.js"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "license": "MIT"
 }

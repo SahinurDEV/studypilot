@@ -63,7 +63,7 @@ npm test           # run the unit tests
 
 1. Create an internal integration at <https://www.notion.so/my-integrations> and copy its token.
 2. Create (or pick) a page for StudyPilot, open **••• → Connections**, and add your integration.
-3. Copy `.env.example` to `.env` and set `NOTION_TOKEN` and `NOTION_PARENT_PAGE_ID` (the 32-character ID at the end of the page URL).
+3. Copy `.env.example` to `.env` and set `NOTION_TOKEN` (or copy the token and run `npm run token` on macOS) and `NOTION_PARENT_PAGE_ID` (the 32-character ID at the end of the page URL).
 4. Run `npm run setup`. This creates the Assignments database and prints `NOTION_DATABASE_ID`; add it to `.env`.
    *Already have a Student OS assignments database? Share it with the integration and put its ID in `NOTION_DATABASE_ID` instead.*
 5. `npm start`. The dashboard now shows live Notion data, and **Send plan to Notion** creates today's plan page. Or run `npm run sync`.
