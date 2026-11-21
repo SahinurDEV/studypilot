@@ -19,7 +19,13 @@ Student OS templates in Notion are great for *storing* assignments, exams and pr
 5. **Shows workload ahead** week by week and per course, and warns when a week is over your study capacity.
 6. **Writes the plan back into Notion** as a "Today's Plan · YYYY-MM-DD" page with checkable to-dos, risk alerts and a workload summary, so the plan lives inside your Student OS.
 
-It runs as a **web dashboard** (with an hours slider and a "Send plan to Notion" button) and as a **CLI**. With no Notion keys it runs in **demo mode** on sample data, so judges can try it in seconds.
+It runs as an **interactive web dashboard** and as a **CLI**:
+
+- ✔ **Tick off plan blocks** to log the hours, ▶ **focus timer** (15/25/50 min) that logs time to the task when you finish
+- ➕ **Add tasks** (press `N`), drag **progress sliders**, mark tasks **done**, all with **Undo**
+- 🔎 **Search** (`/`), filter by **course** or **risk** (click a stat card or course bar), **sort** any column
+- Every change **re-plans your day instantly**, and with Notion connected it's written back to your database
+- Polished motion: staggered entrances, loading skeletons, count-up numbers, animated rankings (FLIP), growing bars, ripples. Respects *reduce motion* With no Notion keys it runs in **demo mode** on sample data, so judges can try it in seconds.
 
 ## How it uses Notion Student OS
 

@@ -100,6 +100,14 @@ class NotionClient {
     });
   }
 
+  // Update progress / status of one assignment row.
+  async updateTask(pageId, { progress, status }) {
+    const properties = {};
+    if (progress != null) properties['Progress %'] = { number: Math.round(progress) };
+    if (status) properties.Status = { select: { name: status } };
+    return this.request('PATCH', `/pages/${pageId}`, { properties });
+  }
+
   // Write the daily plan back into Notion as a page with to-do blocks.
   async writeDailyPlan(parentPageId, plan, weeks) {
     const riskEmoji = { overdue: '🔴', 'at-risk': '🟠', tight: '🟡', ok: '🟢' };
