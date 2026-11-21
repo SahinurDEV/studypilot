@@ -41,8 +41,6 @@ It runs as an **interactive web dashboard** and as a **CLI**:
 
 ## How AI was used to build it
 
-<!-- TODO: describe how you used Devin Chat (prompts, features Devin built or improved, what you changed). -->
-
 StudyPilot was built with AI coding agents. The planning engine, Notion client, dashboard and tests were written by an AI coding agent from a short spec: "rank student work by real time pressure, fit it into the hours available today, and write the plan back into Notion".
 
 ## Run it
